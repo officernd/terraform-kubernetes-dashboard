@@ -349,3 +349,39 @@ resource "kubernetes_service" "kubernetes_metrics_scraper" {
     }
   }
 }
+
+resource "kubernetes_ingress" "kubernetes_dashboard" {
+  metadata {
+    name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
+    namespace = var.kubernetes_namespace
+    labels = local.kubernetes_resources_labels
+
+    annotations = {
+      "alb.ingress.kubernetes.io/scheme" = var.alb_schema
+      "alb.ingress.kubernetes.io/target-type" = "ip"
+      "alb.ingress.kubernetes.io/certificate-arn" = var.alb_certificate_arn
+      "external-dns.alpha.kubernetes.io/hostname" = var.dns_hostname
+      "kubernetes.io/ingress.class" = "alb"
+    }
+  }
+
+  spec {
+    backend {
+      service_name = kubernetes_service.kubernetes_dashboard.metadata.0.name
+      service_port = 80
+    }
+
+    rule {
+      http {
+        path {
+          backend {
+            service_name = kubernetes_service.kubernetes_dashboard.metadata.0.name
+            service_port = 80
+          }
+
+          path = "/*"
+        }
+      }
+    }
+  }
+}

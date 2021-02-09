@@ -50,67 +50,20 @@ variable "kubernetes_deployment_node_selector" {
   description = "Node selectors for kubernetes deployment"
 }
 
-variable "kubernetes_deployment_tolerations" {
-  type = list(object({
-    key = string
-    operator = string
-    value = string
-    effect = string
-  }))
-
-  default = [
-    {
-      key = "node-role.kubernetes.io/master"
-      operator = "Equal"
-      value = ""
-      effect = "NoSchedule"
-    }
-  ]
-}
-
-variable "kubernetes_service_account_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes service account name."
-}
-
-variable "kubernetes_secret_certs_name" {
-  type = string
-  default = "kubernetes-dashboard-certs"
-  description = "Kubernetes secret certs name."
-}
-
-variable "kubernetes_role_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes role name."
-}
-
-variable "kubernetes_role_binding_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes role binding name."
-}
-
-variable "kubernetes_deployment_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes deployment name."
-}
-
-variable "kubernetes_service_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes service name."
-}
-
-variable "kubernetes_ingress_name" {
-  type = string
-  default = "kubernetes-dashboard"
-  description = "Kubernetes ingress name."
-}
-
 variable "kubernetes_dashboard_csrf" {
   type = string
   description = "CSRF token"
+}
+
+variable "alb_schema" {
+  type = string
+  default = "internal"
+}
+
+variable "alb_certificate_arn" {
+  type = string
+}
+
+variable "dns_hostname" {
+  type = string
 }
