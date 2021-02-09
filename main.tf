@@ -7,7 +7,6 @@ resource "kubernetes_namespace" "kubernetes_dashboard" {
 }
 
 resource "kubernetes_service_account" "kubernetes_dashboard" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
     namespace = var.kubernetes_namespace
@@ -15,25 +14,7 @@ resource "kubernetes_service_account" "kubernetes_dashboard" {
   }
 }
 
-resource "kubernetes_secret" "kubernetes_dashboard_certs" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
-  metadata {
-    name = "kubernetes-dashboard-certs"
-    namespace = var.kubernetes_namespace
-    labels = local.kubernetes_resources_labels
-  }
-
-  type = "Opaque"
-
-  lifecycle {
-    ignore_changes = [
-      data,
-    ]
-  }
-}
-
 resource "kubernetes_secret" "kubernetes_dashboard_csrf" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "kubernetes-dashboard-csrf"
     namespace = var.kubernetes_namespace
@@ -48,7 +29,6 @@ resource "kubernetes_secret" "kubernetes_dashboard_csrf" {
 }
 
 resource "kubernetes_secret" "kubernetes_dashboard_key_holder" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "kubernetes-dashboard-key-holder"
     namespace = var.kubernetes_namespace
@@ -64,7 +44,6 @@ resource "kubernetes_secret" "kubernetes_dashboard_key_holder" {
 }
 
 resource "kubernetes_config_map" "kubernetes_dashboard_settings" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "kubernetes-dashboard-settings"
     namespace = var.kubernetes_namespace
@@ -79,7 +58,6 @@ resource "kubernetes_config_map" "kubernetes_dashboard_settings" {
 }
 
 resource "kubernetes_role" "kubernetes_dashboard" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
     namespace = var.kubernetes_namespace
@@ -91,7 +69,6 @@ resource "kubernetes_role" "kubernetes_dashboard" {
     resources = ["secrets"]
     resource_names = [
       kubernetes_secret.kubernetes_dashboard_key_holder.metadata.0.name,
-      kubernetes_secret.kubernetes_dashboard_certs.metadata.0.name,
       kubernetes_secret.kubernetes_dashboard_csrf.metadata.0.name,
     ]
     verbs = ["get", "update", "delete"]
@@ -129,7 +106,6 @@ resource "kubernetes_role" "kubernetes_dashboard" {
 }
 
 resource "kubernetes_role_binding" "kubernetes_dashboard" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
     namespace = var.kubernetes_namespace
@@ -182,7 +158,6 @@ resource "kubernetes_cluster_role_binding" "kubernetes_dashboard" {
 }
 
 resource "kubernetes_deployment" "kubernetes_dashboard" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
     namespace = var.kubernetes_namespace
@@ -211,18 +186,13 @@ resource "kubernetes_deployment" "kubernetes_dashboard" {
           name = "kubernetes-dashboard"
 
           args = [
-            "--auto-generate-certificates",
+            "--enable-insecure-login",
             "--namespace=${var.kubernetes_namespace}",
           ]
 
           port {
-            container_port = 8443
+            container_port = 9090
             protocol = "TCP"
-          }
-
-          volume_mount {
-            name = "kubernetes-dashboard-certs"
-            mount_path = "/certs"
           }
 
           volume_mount {
@@ -232,9 +202,9 @@ resource "kubernetes_deployment" "kubernetes_dashboard" {
 
           liveness_probe {
             http_get {
-              scheme = "HTTPS"
+              scheme = "HTTP"
               path = "/"
-              port = 8443
+              port = 9090
             }
 
             initial_delay_seconds = 30
@@ -252,13 +222,6 @@ resource "kubernetes_deployment" "kubernetes_dashboard" {
         }
 
         volume {
-          name = "kubernetes-dashboard-certs"
-          secret {
-            secret_name = kubernetes_secret.kubernetes_dashboard_certs.metadata.0.name
-          }
-        }
-
-        volume {
           name = "tmp-volume"
           empty_dir {
 
@@ -267,14 +230,9 @@ resource "kubernetes_deployment" "kubernetes_dashboard" {
 
         node_selector = var.kubernetes_deployment_node_selector
 
-        dynamic toleration {
-          for_each = var.kubernetes_deployment_tolerations
-          content {
-            key      = toleration.value.key
-            operator = toleration.value.operator
-            value    = toleration.value.value
-            effect   = toleration.value.effect
-          }
+        toleration {
+          key = "node-role.kubernetes.io/master"
+          effect = "NoSchedule"
         }
       }
     }
@@ -282,7 +240,6 @@ resource "kubernetes_deployment" "kubernetes_dashboard" {
 }
 
 resource "kubernetes_deployment" "kubernetes_metrics_scraper" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-metrics-scraper"
     namespace = var.kubernetes_namespace
@@ -350,14 +307,9 @@ resource "kubernetes_deployment" "kubernetes_metrics_scraper" {
 
         node_selector = var.kubernetes_deployment_node_selector
 
-        dynamic toleration {
-          for_each = var.kubernetes_deployment_tolerations
-          content {
-            key      = toleration.value.key
-            operator = toleration.value.operator
-            value    = toleration.value.value
-            effect   = toleration.value.effect
-          }
+        toleration {
+          key = "node-role.kubernetes.io/master"
+          effect = "NoSchedule"
         }
       }
     }
@@ -365,7 +317,6 @@ resource "kubernetes_deployment" "kubernetes_metrics_scraper" {
 }
 
 resource "kubernetes_service" "kubernetes_dashboard" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}kubernetes-dashboard"
     namespace = var.kubernetes_namespace
@@ -376,14 +327,13 @@ resource "kubernetes_service" "kubernetes_dashboard" {
     selector = local.kubernetes_deployment_labels_selector
 
     port {
-      port = 443
-      target_port = 8443
+      port = 80
+      target_port = 9090
     }
   }
 }
 
 resource "kubernetes_service" "kubernetes_metrics_scraper" {
-  depends_on = [kubernetes_namespace.kubernetes_dashboard]
   metadata {
     name = "${var.kubernetes_resources_name_prefix}dashboard-metrics-scraper"
     namespace = var.kubernetes_namespace
